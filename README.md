@@ -1,5 +1,7 @@
 # POTREC Stack
-Potrec stands for: **PO**rtainer **TR**aefik lets**E**n**C**rypt (ikr? 🙄)
+Potrec stands for: **PO**rtainer **TR**aefik lets**E**n**C**rypt
+
+(ikr? 🙄)
 
 
 ## About this read me
