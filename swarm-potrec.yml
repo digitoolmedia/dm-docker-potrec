@@ -50,7 +50,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints: [node.hostname == HOSTNAME]
+        constraints: ${NODE_PLACEMENT}
       labels:
         traefik.enable: "true"
         traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto: https
@@ -86,7 +86,8 @@ services:
         window: 60s
       mode: global
       placement:
-        constraints: [node.platform.os == linux]
+        constraints: 
+          - node.platform.os == linux
 
 
   portainer:
@@ -106,7 +107,8 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints: [node.hostname == HOSTNAME]
+        constraints: 
+          - ${NODE_PLACEMENT}
       labels:
         traefik.enable: "true"
         traefik.http.routers.portainer.rule: Host(`${PORTAINER_DOMAIN}`)
