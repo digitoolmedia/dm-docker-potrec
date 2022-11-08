@@ -3,6 +3,8 @@ Potrec stands for: **PO**rtainer **TR**aefik lets**E**n**C**rypt
 
 (ikr? 🙄)
 
+Start the stack via `docker stack deploy -c potrec.yml potrec`
+
 
 ## About this read me
 This is going to be a nice readme and basic doco for the deployment of this stack on a docker swarm, with FAQ regarding some workaround and caveats.
