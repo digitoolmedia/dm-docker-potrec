@@ -93,7 +93,7 @@ services:
 
   portainer:
     image: portainer/portainer-ce:latest
-    command: -H tcp://tasks.agent:9001 --tlsskipverify
+    command: -H tcp://tasks.agent:9001 --tlsskipverify --http-disabled
     volumes:
       - ./portainer_data:/data
     networks:
