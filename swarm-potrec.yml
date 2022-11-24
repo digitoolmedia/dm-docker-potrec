@@ -29,6 +29,12 @@ services:
       - --certificatesresolvers.wildcard.acme.dnschallenge.provider=${DNS_PROVIDER}
       - --certificatesresolvers.wildcard.acme.storage=/acme/wildcard/acme.json
       - --certificatesresolvers.wildcard.acme.dnschallenge=true
+      # Metrics
+      - --metrics.prometheus=true
+      - --metrics.prometheus.buckets=0.1,0.3,1.2,5.0
+      - --metrics.prometheus.addEntryPointsLabels=true # Default true
+      - --metrics.prometheus.addrouterslabels=true # Dafault false
+      - --metrics.prometheus.addServicesLabels=true # Default true
     environment:
       ${DNS_API_PROVIDER}: ${DNS_API_KEY}
     ports:
@@ -38,6 +44,7 @@ services:
       #- 1994:1994/udp
     networks:
       - traefik-public
+      - metrics-net
     volumes:
       - ./acme/letsencrypt:/acme/letsencrypt
       - ./acme/wildcard:/acme/wildcard
@@ -100,6 +107,7 @@ services:
     networks:
       - traefik-public
       - agent_network
+      - metrics-net
     deploy:
       restart_policy:
         condition: on-failure
@@ -126,6 +134,105 @@ services:
         traefik.http.routers.edge.service: edge
 
 
+# Metrics related containers SECTION-START
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus_data:/prometheus
+    user: 1000:1000
+    command:
+      - "--config.file=/prometheus/prometheus-conf.yml"
+    networks:
+      - metrics-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 5
+        window: 60s
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: 
+          - ${NODE_PLACEMENT}
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.prometheus.rule: Host(`${PROMETHEUS_DOMAIN}`)
+        traefik.http.routers.prometheus.service: prometheus
+        traefik.http.routers.prometheus.entrypoints: websecure
+        traefik.http.services.prometheus.loadbalancer.server.port: 9090
+        traefik.http.routers.prometheus.middlewares: basic-auth
+        traefik.http.middlewares.basic-auth.basicauth.users: ${TRAEFIK_BASICAUTH_USERS}
+
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+    user: 1000:1000
+    networks:
+      - metrics-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 5
+        window: 60s
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: 
+          - ${NODE_PLACEMENT}
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.grafana.rule: Host(`${GRAFANA_DOMAIN}`)
+        traefik.http.routers.grafana.service: grafana
+        traefik.http.routers.grafana.entrypoints: websecure
+        traefik.http.services.grafana.loadbalancer.server.port: 3000
+
+
+  node-exporter:
+    image: flaviostutz/docker-swarm-node-exporter
+    environment:
+      - NODE_ID={{.Node.ID}}
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/nodename
+    networks:
+      - metrics-net
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+
+  cadvisor:
+    # manually set latest release https://github.com/google/cadvisor/releases 
+    image: gcr.io/cadvisor/cadvisor:v0.46.0
+    # UI port not needed atm but keeping for reference
+    #ports:
+    #  - "8080:8080"
+    networks:
+      - metrics-net
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+    deploy:
+      mode: global
+# Metrics related containers SECTION-END
+
+
 networks:
   traefik-public:
     #driver: overlay
@@ -133,3 +240,4 @@ networks:
   agent_network:
     #driver: overlay
     external: true
+  metrics-net:
