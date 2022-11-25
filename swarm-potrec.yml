@@ -44,7 +44,6 @@ services:
       #- 1994:1994/udp
     networks:
       - traefik-public
-      - metrics-net
     volumes:
       - ./acme/letsencrypt:/acme/letsencrypt
       - ./acme/wildcard:/acme/wildcard
@@ -107,7 +106,6 @@ services:
     networks:
       - traefik-public
       - agent_network
-      # - metrics-net not usable atm but will leave for future experimentation
     deploy:
       restart_policy:
         condition: on-failure
