@@ -24,11 +24,13 @@ services:
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_USER_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/acme/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      # - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       # Wildcard Resolver
       - --certificatesresolvers.wildcard.acme.email=${ACME_USER_EMAIL}
       - --certificatesresolvers.wildcard.acme.dnschallenge.provider=${DNS_PROVIDER}
       - --certificatesresolvers.wildcard.acme.storage=/acme/wildcard/acme.json
       - --certificatesresolvers.wildcard.acme.dnschallenge=true
+      # - --certificatesresolvers.wildcard.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       # Metrics
       - --metrics.prometheus=true
       - --metrics.prometheus.buckets=0.1,0.3,1.2,5.0
