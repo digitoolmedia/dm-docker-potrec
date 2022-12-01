@@ -132,9 +132,10 @@ services:
         traefik.http.routers.portainer.tls.certresolver: letsencrypt
         # Edge
         traefik.http.routers.edge.rule: Host(`${EDGE_DOMAIN}`)
-        traefik.http.routers.edge.entrypoints: web
+        traefik.http.routers.edge.entrypoints: websecure
         traefik.http.services.edge.loadbalancer.server.port: 8000
         traefik.http.routers.edge.service: edge
+        traefik.http.routers.edge.tls.certresolver: letsencrypt
 
 
 networks:
