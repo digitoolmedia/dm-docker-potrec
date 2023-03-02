@@ -1,0 +1,103 @@
+version: "3.3"
+
+services:
+
+  traefik:
+    image: "traefik:latest"
+    command:
+      - --api
+      - --log.level=ERROR
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      #- --entrypoints.tcp-ingress.address=:1961
+      #- --entrypoints.udp-ingress.address=:1994
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=traefik-public
+      - --serversTransport.insecureSkipVerify=true
+      # Redirect http to https
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      # Main TLS Resolver
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_USER_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      # - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # Wildcard Resolver
+      - --certificatesresolvers.wildcard.acme.email=${ACME_USER_EMAIL}
+      - --certificatesresolvers.wildcard.acme.dnschallenge.provider=${DNS_PROVIDER}
+      - --certificatesresolvers.wildcard.acme.storage=/acme/wildcard/acme.json
+      - --certificatesresolvers.wildcard.acme.dnschallenge=true
+      # - --certificatesresolvers.wildcard.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # Metrics
+      - --metrics.prometheus=true
+      - --metrics.prometheus.buckets=0.1,0.3,1.2,5.0
+      - --metrics.prometheus.addEntryPointsLabels=true # Default true
+      - --metrics.prometheus.addrouterslabels=true # Dafault false
+      - --metrics.prometheus.addServicesLabels=true # Default true
+    environment:
+      ${DNS_API_PROVIDER}: ${DNS_API_KEY}
+    ports:
+      - 80:80
+      - 443:443
+      #- 1961:1961/tcp
+      #- 1994:1994/udp
+    networks:
+      - traefik-public
+    volumes:
+      - ./acme/letsencrypt:/acme/letsencrypt
+      - ./acme/wildcard:/acme/wildcard
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - ${NODE_PLACEMENT}
+      labels:
+        traefik.enable: "true"
+        traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto: https
+        traefik.http.routers.traefik.entrypoints: websecure
+        traefik.http.routers.traefik.tls.certresolver: wildcard
+        traefik.http.routers.traefik.tls.domains[0].main: ${WILDCARD_MAIN_DOMAIN}
+        traefik.http.routers.traefik.tls.domains[0].sans: ${WILDCARD_SANS_DOMAIN}
+        traefik.http.routers.traefik.rule: Host(`${TRAEFIK_DOMAIN}`)
+        traefik.http.routers.traefik.service: api@internal
+        traefik.http.routers.traefik.middlewares: basic-auth
+        traefik.http.middlewares.basic-auth.basicauth.users: ${TRAEFIK_BASICAUTH_USERS}
+        # Per Doco:"Dummy service for Swarm port detection. The port can be any valid integer value."
+        traefik.http.services.dummy-svc.loadbalancer.server.port: 9999
+
+
+  agent:
+    image: portainer/agent:latest
+    environment:
+      EDGE: 1
+      EDGE_ID:
+      EDGE_KEY: 
+      # Per Doco:"Should be equal to the service name prefixed by "tasks." when deployed inside an overlay network"
+      AGENT_CLUSTER_ADDR: tasks.agent
+      # AGENT_SECRET: ${PORTAINER_SECRET}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+      - /:/host
+      - portainer_agent_data:/data
+    networks:
+      - agent_network
+    deploy:
+      mode: global
+      placement:
+        constraints: 
+          - node.platform.os == linux
+
+
+networks:
+  traefik-public:
+    #driver: overlay
+    external: true
+  agent_network:
+    #driver: overlay
+    external: true
