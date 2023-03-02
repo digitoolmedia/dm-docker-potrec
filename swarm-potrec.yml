@@ -20,6 +20,10 @@ services:
       # Redirect http to https
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      # Forwarded Headers
+      - --entryPoints.web.forwardedHeaders.insecure
+      # ProxyProtocol
+      - --entryPoints.web.proxyProtocol.insecure
       # Main TLS Resolver
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_USER_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/acme/letsencrypt/acme.json
@@ -32,8 +36,14 @@ services:
     environment:
       ${DNS_API_PROVIDER}: ${DNS_API_KEY}
     ports:
-      - 80:80
-      - 443:443
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
       #- 1961:1961/tcp
       #- 1994:1994/udp
     networks:
